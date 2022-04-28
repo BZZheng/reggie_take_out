@@ -17,6 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 
 @Slf4j
 @RestController
@@ -28,12 +29,13 @@ public class EmployeeController {
 
     /**
      * 员工登录
+     *
      * @param request
      * @param employee
      * @return
      */
     @PostMapping("/login")
-    public Result<Employee> login(HttpServletRequest request, @RequestBody Employee employee){
+    public Result<Employee> login(HttpServletRequest request, @RequestBody Employee employee) {
 
         // 1、表单拿到的密码 -> md5加密
         String password = employee.getPassword();
@@ -45,17 +47,17 @@ public class EmployeeController {
         Employee emp = employeeService.getOne(queryWrapper);
 
         // 3、没有则返回查询登录失败
-        if(emp == null){
+        if (emp == null) {
             return Result.error("登录失败，用户名或密码错误");
         }
 
         // 4、密码比对，不一致则返回登录失败
-        if(!emp.getPassword().equals(password)){
+        if (!emp.getPassword().equals(password)) {
             return Result.error("登录失败，用户名或密码错误");
         }
 
         // 5、查看员工状态，已禁用，返回员工已禁用结果
-        if (emp.getStatus() == 0){
+        if (emp.getStatus() == 0) {
             return Result.error("账号已禁用");
         }
 
@@ -66,13 +68,39 @@ public class EmployeeController {
 
     /**
      * 员工退出
+     *
      * @param request
      * @return
      */
     @PostMapping("/logout")
-    public Result<String> logout(HttpServletRequest request){
+    public Result<String> logout(HttpServletRequest request) {
         //清理session中保存的当前登录员工的id
         request.getSession().removeAttribute("employee");
         return Result.success("退出成功！");
+    }
+
+    /**
+     * 新增员工
+     * @param employee
+     * @return
+     */
+    @PostMapping
+    public Result<String> save(HttpServletRequest request, @RequestBody Employee employee){
+        log.info("新增员工， 员工信息：{}", employee.toString());
+
+        // 设置初始密码123456，需要进行md5加密
+        employee.setPassword(DigestUtils.md5DigestAsHex("123456".getBytes()));
+
+        employee.setCreateTime(LocalDateTime.now());
+        employee.setUpdateTime(LocalDateTime.now());
+
+        // 获取当前登录用户的id
+        Long empId = (Long) request.getSession().getAttribute("employee");
+        employee.setCreateUser(empId);
+        employee.setUpdateUser(empId);
+
+        employeeService.save(employee);
+
+        return Result.success("新增员工成功");
     }
 }
